@@ -283,8 +283,12 @@ void jsk_pcl_ros::DepthImageCreator::publish_points(const sensor_msgs::CameraInf
     rangeImagePP.header = info->header;
 #endif
     if(proc_cloud) {
-      pub_cloud_.publish(boost::make_shared<pcl::PointCloud<pcl::PointWithRange > >
-                         ( (pcl::PointCloud<pcl::PointWithRange>)rangeImagePP) );
+      sensor_msgs::PointCloud2 ros_cloud;
+      pcl::toROSMsg(rangeImageP, ros_cloud);
+      ros_cloud.header = info -> header;
+      pub_cloud_.publish(ros_cloud);
+      // pub_cloud_.publish(boost::make_shared<pcl::PointCloud<pcl::PointWithRange > >
+      // ( (pcl::PointCloud<pcl::PointWithRange>)rangeImagePP) );
     }
 
     if(proc_disp) {
