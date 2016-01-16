@@ -75,6 +75,7 @@ add_service_files(FILES SwitchTopic.srv
   PolygonOnEnvironment.srv
   ICPAlignWithBox.srv
   ICPAlign.srv
+  GetFallAffordance.srv
   CheckCollision.srv)
 
 # generate the dynamic_reconfigure config file
@@ -304,6 +305,8 @@ jsk_pcl_nodelet(src/joint_state_static_filter_nodelet.cpp
   "jsk_pcl/JointStateStaticFilter" "joint_state_static_filter")
 jsk_pcl_nodelet(src/icp_registration_nodelet.cpp
   "jsk_pcl/ICPRegistration" "icp_registration")
+jsk_pcl_nodelet(src/fall_affordance_calculator_nodelet.cpp
+  "jsk_pcl/FallAffordanceCalculator" "fall_affordance_calculator")
 jsk_pcl_util_nodelet_deprecated(src/transform_pointcloud_in_bounding_box_nodelet.cpp
   "jsk_pcl/TransformPointcloudInBoundingBox" "transform_pointcloud_in_bounding_box")
 jsk_pcl_nodelet(src/pointcloud_database_server_nodelet.cpp

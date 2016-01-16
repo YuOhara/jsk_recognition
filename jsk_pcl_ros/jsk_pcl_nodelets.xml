@@ -311,6 +311,12 @@
       register pointclouds using ICP algorithm
     </description>
   </class>
+  <class name="jsk_pcl/FallAffordanceCalculator" type="jsk_pcl_ros::FallAffordanceCalculator"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      calculate fall affordance with pointcloud and b-box
+    </description>
+  </class>
   <class name="jsk_pcl/OrganizedPassThrough" type="jsk_pcl_ros::OrganizedPassThrough"
          base_class_type="nodelet::Nodelet">
     <description>
