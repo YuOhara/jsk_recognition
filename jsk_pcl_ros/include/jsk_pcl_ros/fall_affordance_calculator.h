@@ -40,7 +40,6 @@
 #include <pcl_ros/pcl_nodelet.h>
 #include <jsk_recognition_msgs/BoundingBox.h>
 #include <jsk_pcl_ros/GetFallAffordance.h>
-#include <jsk_recognition_msgs/ICPResult.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/synchronizer.h>
@@ -65,10 +64,10 @@ namespace jsk_pcl_ros
     // methosd
     ////////////////////////////////////////////////////////
     virtual void onInit();
-    virtual void alignWithBox(
+    virtual void registerPoint(
       const sensor_msgs::PointCloud2::ConstPtr& msg,
       const jsk_recognition_msgs::BoundingBox::ConstPtr& box_msg);
-    virtual bool alignWithBoxService(
+    virtual bool getFallAffordanceService(
       jsk_pcl_ros::GetFallAffordance::Request& req,
       jsk_pcl_ros::GetFallAffordance::Response& res);
     virtual void subscribe();
@@ -90,7 +89,6 @@ namespace jsk_pcl_ros
     std::string frame_id_;
     float centroid_z_;
   private:
-
   };
 }
 

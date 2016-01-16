@@ -55,7 +55,7 @@ namespace jsk_pcl_ros
     // Publishers
     ////////////////////////////////////////////////////////
     srv_get_fall_affordance_ = pnh_->advertiseService(
-      "get_fall_affordance", &FallAffordanceCalculator::alignWithBoxService, this);
+      "get_fall_affordance", &FallAffordanceCalculator::getFallAffordanceService, this);
     onInitPostProcess();
     ////////////////////////////////////////////////////////
     // Subscription
@@ -65,7 +65,7 @@ namespace jsk_pcl_ros
     sync_ = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(100);
     sync_->connectInput(sub_input_, sub_box_);
     sync_->registerCallback(boost::bind(
-                                        &FallAffordanceCalculator::alignWithBox,
+                                        &FallAffordanceCalculator::registerPoint,
                                         this, _1, _2));
   }
 
@@ -77,7 +77,7 @@ namespace jsk_pcl_ros
   {
   }
 
-  void FallAffordanceCalculator::alignWithBox(
+  void FallAffordanceCalculator::registerPoint(
       const sensor_msgs::PointCloud2::ConstPtr& msg,
       const jsk_recognition_msgs::BoundingBox::ConstPtr& box_msg)
   {
@@ -116,7 +116,7 @@ namespace jsk_pcl_ros
     cut_cloud_ = cut_cloud;
   }
   
-  bool FallAffordanceCalculator::alignWithBoxService(
+  bool FallAffordanceCalculator::getFallAffordanceService(
     jsk_pcl_ros::GetFallAffordance::Request& req,
     jsk_pcl_ros::GetFallAffordance::Response& res)
   {
