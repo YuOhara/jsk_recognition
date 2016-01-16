@@ -54,13 +54,9 @@ namespace jsk_pcl_ros
     ////////////////////////////////////////////////////////
     // Publishers
     ////////////////////////////////////////////////////////
-    srv_icp_align_ = pnh_->advertiseService(
-      "icp_align", &FallAffordanceCalculator::alignWithBoxService, this);
+    srv_get_fall_affordance_ = pnh_->advertiseService(
+      "get_fall_affordance", &FallAffordanceCalculator::alignWithBoxService, this);
     onInitPostProcess();
-  }
-
-  void FallAffordanceCalculator::subscribe()
-  {
     ////////////////////////////////////////////////////////
     // Subscription
     ////////////////////////////////////////////////////////
@@ -71,6 +67,10 @@ namespace jsk_pcl_ros
     sync_->registerCallback(boost::bind(
                                         &FallAffordanceCalculator::alignWithBox,
                                         this, _1, _2));
+  }
+
+  void FallAffordanceCalculator::subscribe()
+  {
   }
 
   void FallAffordanceCalculator::unsubscribe()
@@ -146,9 +146,11 @@ namespace jsk_pcl_ros
       if (min_x > output_cloud->points[index].x)
         min_x = output_cloud->points[index].x;
     }
+    JSK_NODELET_INFO("min_x %f max_x %f", min_x, max_x);
     float grasp_z = pose_eigened.translation()[2];
     JSK_NODELET_INFO("grasp_height: %f", grasp_z);
     res.affordable_distance = (max_x - min_x) * grasp_z / centroid_z_ / 2;
+    JSK_NODELET_INFO("l=%f, hand_z=%f, centroid_z=%f, affordance=%f", max_x - min_x, grasp_z, centroid_z_, res.affordable_distance);
     return true;
   }
 }

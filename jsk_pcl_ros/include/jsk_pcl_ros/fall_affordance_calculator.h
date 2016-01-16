@@ -76,8 +76,7 @@ namespace jsk_pcl_ros
     ////////////////////////////////////////////////////////
     // ROS variables
     ////////////////////////////////////////////////////////
-    ros::ServiceServer srv_icp_align_with_box_;
-    ros::ServiceServer srv_icp_align_;
+    ros::ServiceServer srv_get_fall_affordance_;
     boost::mutex mutex_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_input_;
     message_filters::Subscriber<jsk_recognition_msgs::BoundingBox> sub_box_;
