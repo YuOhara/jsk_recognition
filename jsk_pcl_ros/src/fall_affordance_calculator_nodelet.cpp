@@ -108,14 +108,15 @@ namespace jsk_pcl_ros
     pass.setInputCloud(reference_cloud_);
     Eigen::Vector4f centroid;
     pcl::compute3DCentroid(*reference_cloud_, centroid);
-    centroid_z_ = centroid[2];
+    centroid_z_ = centroid[2] + box_height_;
     pcl::PointCloud<PointT>::Ptr cut_cloud(new pcl::PointCloud<PointT>);
     pass.setFilterFieldName("z");
     pass.setFilterLimits(-box_height_, -box_height_ + 0.01);
+    //pass.setFilterLimits(box_height_ - 0.01, box_height_);
     pass.filter(*cut_cloud);
     cut_cloud_ = cut_cloud;
-  }
   
+}
   bool FallAffordanceCalculator::getFallAffordanceService(
     jsk_pcl_ros::GetFallAffordance::Request& req,
     jsk_pcl_ros::GetFallAffordance::Response& res)
@@ -126,8 +127,8 @@ namespace jsk_pcl_ros
     ros::Time now = ros::Time::now();
     geometry_msgs::PoseStamped trans_pose;
     try{
-      tf_listener_->waitForTransform(frame_id_, req.grasp_pose_stamped.header.frame_id, now, ros::Duration(2.0));
-      tf_listener_->transformPose(frame_id_, now, req.grasp_pose_stamped, req.grasp_pose_stamped.header.frame_id, trans_pose);
+      tf_listener_->waitForTransform(frame_id_, req.reach_pose_stamped.header.frame_id, now, ros::Duration(2.0));
+      tf_listener_->transformPose(frame_id_, now, req.reach_pose_stamped, req.reach_pose_stamped.header.frame_id, trans_pose);
     }
     catch (tf::TransformException ex){
       JSK_NODELET_ERROR("TF Error %s",ex.what());
@@ -148,9 +149,10 @@ namespace jsk_pcl_ros
     }
     JSK_NODELET_INFO("min_x %f max_x %f", min_x, max_x);
     float grasp_z = pose_eigened.translation()[2];
+    float support_length = max_x - min_x;
     JSK_NODELET_INFO("grasp_height: %f", grasp_z);
-    res.affordable_distance = (max_x - min_x) * grasp_z / centroid_z_ / 2;
-    JSK_NODELET_INFO("l=%f, hand_z=%f, centroid_z=%f, affordance=%f", max_x - min_x, grasp_z, centroid_z_, res.affordable_distance);
+    res.affordable_distance = support_length * grasp_z / centroid_z_ / 2;
+    JSK_NODELET_INFO("l=%f, hand_z=%f, centroid_z=%f, affordance=%f", support_length, grasp_z, centroid_z_, res.affordable_distance);
     return true;
   }
 }
