@@ -208,8 +208,8 @@ namespace jsk_pcl_ros
     cvtColor(image_float_, colour_float_ ,CV_RGB2GRAY);
     for (unsigned int v=0; v<colour_wf_.cols(); v++)
       for (unsigned int u=0; u<colour_wf_.rows(); u++){
-        depth_wf_(u, v) = depth_float_.at<float>(u, v);
-        colour_wf_(u, v) = (float) image_float_.at<unsigned char>(u, v);
+        depth_wf_(u, v) = depth_float_.at<float>(u, v) * 1;
+        colour_wf_(u, v) = (float) colour_float_.at<unsigned char>(u, v);
       }
   }
   void SceneFlowCalculator::createImagePyramidGPU(){
