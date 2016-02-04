@@ -35,6 +35,10 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 # For kinfu
 find_package(PCL QUIET COMPONENTS gpu_kinfu_large_scale)
 
+# For scene flow
+find_package(CUDA)
+cuda_add_library(pdflow_cudalib include/jsk_pcl_ros/PD-Flow/pdflow_cudalib.h include/jsk_pcl_ros/PD-Flow/pdflow_cudalib.cu)
+
 pkg_check_modules(yaml_cpp yaml-cpp REQUIRED)
 IF(${yaml_cpp_VERSION} VERSION_LESS "0.5.0")
 ## indigo yaml-cpp : 0.5.0 /  hydro yaml-cpp : 0.3.0
@@ -405,6 +409,7 @@ if (robot_self_filter_FOUND)
   include_directories(include ${robot_self_filter_INCLUDE_DIRS})
   target_link_libraries(jsk_pcl_ros ${robot_self_filter_LIBRARIES})
 endif (robot_self_filter_FOUND)
+target_link_libraries(jsk_pcl_ros ${CUDA_LIBRARIES} pdflow_cudalib)
 
 add_dependencies(jsk_pcl_ros ${PROJECT_NAME}_gencpp ${PROJECT_NAME}_gencfg)
 add_dependencies(jsk_pcl_ros_base ${PROJECT_NAME}_gencpp ${PROJECT_NAME}_gencfg)

@@ -46,10 +46,12 @@
 #include <jsk_topic_tools/connection_based_nodelet.h>
 #include <jsk_recognition_msgs/PointsArray.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <jsk_recognition_utils/time_util.h>
 #include <jsk_pcl_ros/PD-Flow/pdflow_cudalib.h>
 #include <image_geometry/pinhole_camera_model.h>
+#include <cv_bridge/cv_bridge.h>
 
 using Eigen::MatrixXf;
 
@@ -59,7 +61,7 @@ namespace jsk_pcl_ros
   {
   public:
     typedef pcl::PointXYZRGBNormal PointT;
-    typedef message_filters::sync_policies::ExactTime<
+    typedef message_filters::sync_policies::ApproximateTime<
       sensor_msgs::Image,
       sensor_msgs::Image > SyncPolicy;
     SceneFlowCalculator(): timer_(10), done_init_(false), done_sub_caminfo_(false), calc_phase_(false) { }
@@ -73,11 +75,13 @@ namespace jsk_pcl_ros
     virtual void subscribe();
     virtual void unsubscribe();
     ros::Subscriber sub_camera_info_;
+    ros::Publisher pub_result_cloud_;
     message_filters::Subscriber<sensor_msgs::Image> sub_input_;
     message_filters::Subscriber<sensor_msgs::Image> sub_box_;
     jsk_recognition_utils::WallDurationTimer timer_;
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     image_geometry::PinholeCameraModel model_;
+    std_msgs::Header header_;
     bool done_init_;
     bool done_sub_caminfo_;
     bool calc_phase_;
@@ -108,9 +112,17 @@ namespace jsk_pcl_ros
     unsigned int rows_, cols_;
     float fovh_, fovv_;
 
+    cv::Mat image_float_, colour_float_, depth_float_;
+
     //Cuda
     CSF_cuda csf_host_, *csf_device_;
-
+    void solveSceneFlowGPU();
+    void capture(
+                 const sensor_msgs::Image::ConstPtr& image_msg,
+                 const sensor_msgs::Image::ConstPtr& depth_msg);
+    void createImagePyramidGPU();
+    void initializeCUDA();
+    void publishScene();
   private:
 
   };

@@ -316,7 +316,7 @@
       register pointclouds using ICP algorithm
     </description>
   </class>
-  <class name="jsk_pcl/SceneFlowCalulator" type="jsk_pcl_ros::SceneFlowCalculator"
+  <class name="jsk_pcl/SceneFlowCalculator" type="jsk_pcl_ros::SceneFlowCalculator"
          base_class_type="nodelet::Nodelet">
     <description>
       publish scene flow

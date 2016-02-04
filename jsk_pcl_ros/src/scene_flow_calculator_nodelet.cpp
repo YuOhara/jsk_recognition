@@ -55,6 +55,8 @@ namespace jsk_pcl_ros
                                   &SceneFlowCalculator::cameraInfoCallback,
                                   this);
 
+    pub_result_cloud_ = advertise<sensor_msgs::PointCloud2>(*pnh_,
+      "output", 1);
     onInitPostProcess();
   }
   
@@ -118,7 +120,6 @@ namespace jsk_pcl_ros
         dy_[ctf_levels_-i-1] = MatrixXf::Zero(rows_i,cols_i);
         dz_[ctf_levels_-i-1] = MatrixXf::Zero(rows_i,cols_i);
     }
-
     //Resize pyramid
     const unsigned int pyr_levels = round(log2(width/cols_)) + ctf_levels_;
     colour_.resize(pyr_levels);
@@ -129,7 +130,6 @@ namespace jsk_pcl_ros
     xx_old_.resize(pyr_levels);
     yy_.resize(pyr_levels);
     yy_old_.resize(pyr_levels);
-
     for (unsigned int i = 0; i<pyr_levels; i++)
     {
       s = pow(2.f,int(i));
@@ -155,14 +155,15 @@ namespace jsk_pcl_ros
     lambda_d_ = 0.35f;
     mu_ = 75.f;
     initializeCUDA();
+
     sub_camera_info_.shutdown();
     done_sub_caminfo_ = true;
   }
-  void SceneFlowCalculator::initialzeCUDA(){
+  void SceneFlowCalculator::initializeCUDA(){
     //Read parameters
-    csf_host.readParameters(rows_, cols_, lambda_i_, lambda_d_, mu_, g_mask_, ctf_levels_, 1, fovh_, fovv_);
+    csf_host_.readParameters(rows_, cols_, lambda_i_, lambda_d_, mu_, g_mask_, ctf_levels_, (unsigned int) 1, fovh_, fovv_);
     //Allocate memory
-    csf_host.allocateDevMemory();
+    csf_host_.allocateDevMemory();
 
   }
   void SceneFlowCalculator::subImages(
@@ -182,24 +183,59 @@ namespace jsk_pcl_ros
     createImagePyramidGPU();
     if (calc_phase_) {
       solveSceneFlowGPU();
+      publishScene();
     }
-    calc_phase_ = !calc_phase_;
+    // update scene
+    calc_phase_ = true;
+
   }
+  void SceneFlowCalculator::capture(
+               const sensor_msgs::Image::ConstPtr& image_msg,
+               const sensor_msgs::Image::ConstPtr& depth_msg){
+    cv_bridge::CvImagePtr cv_image_ptr;
+    cv_bridge::CvImagePtr cv_depth_ptr;
+    try{
+      cv_image_ptr = cv_bridge::toCvCopy(image_msg, "bgr8");
+      cv_depth_ptr = cv_bridge::toCvCopy(depth_msg, "32FC1");
+    }
+    catch (cv_bridge::Exception& e){
+      JSK_NODELET_ERROR("error in converting msg->cv_mat: %s", e.what());
+    }
+    header_ = depth_msg->header;
+    //cv_depth_ptr->image.convertTo(depth_float, CV_32FC1);
+    depth_float_ = cv_depth_ptr->image.clone();
+    image_float_ = cv_image_ptr->image.clone();
+    cvtColor(image_float_, colour_float_ ,CV_RGB2GRAY);
+    for (unsigned int v=0; v<colour_wf_.cols(); v++)
+      for (unsigned int u=0; u<colour_wf_.rows(); u++){
+        depth_wf_(u, v) = depth_float_.at<float>(u, v);
+        colour_wf_(u, v) = (float) image_float_.at<unsigned char>(u, v);
+      }
+  }
+  void SceneFlowCalculator::createImagePyramidGPU(){
+    //Copy new frames to the scene flow object
+    csf_host_.copyNewFrames(colour_wf_.data(), depth_wf_.data());
+    //Copy scene flow object to device
+    csf_device_ = ObjectToDevice(&csf_host_);
+    unsigned int pyr_levels = round(log2(640/(1*cols_))) + ctf_levels_;
+    GaussianPyramidBridge(csf_device_, pyr_levels, 1);
+    //Copy scene flow object back to host
+    BridgeBack(&csf_host_, csf_device_);
+  }
+
   void SceneFlowCalculator::solveSceneFlowGPU()
   {
     //Define variables
-    CTicTac clock;
     unsigned int s;
     unsigned int cols_i, rows_i;
     unsigned int level_image;
     unsigned int num_iter;
 
-    clock.Tic();
     //For every level (coarse-to-fine)
     for (unsigned int i=0; i<ctf_levels_; i++)
     {
-      const unsigned int width = colour_wf_.cols_();
-      s = pow(2.f,int(ctf_levels-(i+1)));
+      const unsigned int width = colour_wf_.cols();
+      s = pow(2.f,int(ctf_levels_-(i+1)));
       cols_i = cols_/s;
       rows_i = rows_/s;
       level_image = ctf_levels_ - i + round(log2(width/cols_)) - 1;
@@ -210,39 +246,39 @@ namespace jsk_pcl_ros
       //Cuda allocate memory
       csf_host_.allocateMemoryNewLevel(rows_i, cols_i, i, level_image);
       //Cuda copy object to device
-      csf_device_ = ObjectToDevice(&csf_host);
+      csf_device_ = ObjectToDevice(&csf_host_);
       //Assign zeros to the corresponding variables
       AssignZerosBridge(csf_device_);
       //Upsample previous solution
       if (i>0)
         UpsampleBridge(csf_device_);
         //Compute connectivity (Rij)
-      RijBridge(csf_device);
+      RijBridge(csf_device_);
       //Compute colour and depth derivatives
-      ImageGradientsBridge(csf_device);
-      WarpingBridge(csf_device);
+      ImageGradientsBridge(csf_device_);
+      WarpingBridge(csf_device_);
       //Compute mu_uv and step sizes for the primal-dual algorithm
-      MuAndStepSizesBridge(csf_device);
+      MuAndStepSizesBridge(csf_device_);
       //Primal-Dual solver
-      for (num_iter = 0; num_iter < num_max_iter[i]; num_iter++)
+      for (num_iter = 0; num_iter < num_max_iter_[i]; num_iter++)
       {
-        GradientBridge(csf_device);
-        DualVariablesBridge(csf_device);
-        DivergenceBridge(csf_device);
-        PrimalVariablesBridge(csf_device);
+        GradientBridge(csf_device_);
+        DualVariablesBridge(csf_device_);
+        DivergenceBridge(csf_device_);
+        PrimalVariablesBridge(csf_device_);
       }
       //Filter solution
-      FilterBridge(csf_device);
+      FilterBridge(csf_device_);
       //Compute the motion field
-      MotionFieldBridge(csf_device);
+      MotionFieldBridge(csf_device_);
       //BridgeBack
-      BridgeBack(&csf_host, csf_device);
+      BridgeBack(&csf_host_, csf_device_);
       //Free variables of variables associated to this level
-      csf_host.freeLevelVariables();
+      csf_host_.freeLevelVariables();
       //Copy motion field and images to CPU
-      csf_host.copyAllSolutions(dx[ctf_levels-i-1].data(), dy[ctf_levels-i-1].data(), dz[ctf_levels-i-1].data(),
-                                depth[level_image].data(), depth_old[level_image].data(), colour[level_image].data(), colour_old[level_image].data(),
-                                xx[level_image].data(), xx_old[level_image].data(), yy[level_image].data(), yy_old[level_image].data());
+      csf_host_.copyAllSolutions(dx_[ctf_levels_-i-1].data(), dy_[ctf_levels_-i-1].data(), dz_[ctf_levels_-i-1].data(),
+                                depth_[level_image].data(), depth_old_[level_image].data(), colour_[level_image].data(), colour_old_[level_image].data(),
+                                xx_[level_image].data(), xx_old_[level_image].data(), yy_[level_image].data(), yy_old_[level_image].data());
       //For debugging
       //DebugBridge(csf_device);
       //=========================================================================
@@ -250,7 +286,47 @@ namespace jsk_pcl_ros
       //=========================================================================
     }
   }
+  void SceneFlowCalculator::publishScene(){
+    float center_x = model_.cx();
+    float center_y = model_.cy();
 
+    float unit_scaling = 1.0;
+    float constant_x = unit_scaling / model_.fx();
+    float constant_y = unit_scaling / model_.fy();
+
+    float bad_point = std::numeric_limits<float>::quiet_NaN ();
+    pcl::PointCloud<pcl::PointXYZRGBNormal> cloud;
+    unsigned int width = depth_float_.cols;
+    unsigned int height = depth_float_.rows;
+    cloud.points.resize(width * height);
+    cloud.width = width;
+    cloud.height = height;
+    for (size_t i=0; i < height; i++) {
+      for (size_t j=0; j < width; j++) {
+        float depth = depth_float_.at<float>(i, j);
+        if (! std::isfinite(depth)){
+          cloud.points[i * width + j].x = bad_point;
+          cloud.points[i * width + j].y = bad_point;
+          cloud.points[i * width + j].z = bad_point;
+        }
+        else{
+          cloud.points[i * width + j].x = (j - center_x) * depth * constant_x;
+          cloud.points[i * width + j].y = (i - center_y) * depth * constant_y;
+          cloud.points[i * width + j].z = depth;
+        }
+        cloud.points[i * width + j].b = image_float_.at<cv::Vec3b>(i, j)[0];
+        cloud.points[i * width + j].g = image_float_.at<cv::Vec3b>(i, j)[1];
+        cloud.points[i * width + j].r = image_float_.at<cv::Vec3b>(i, j)[2];
+        cloud.points[i * width + j].normal_x = dx_[0](i, j);
+        cloud.points[i * width + j].normal_x = dy_[0](i, j);
+        cloud.points[i * width + j].normal_x = dz_[0](i, j);
+      }
+    }
+    sensor_msgs::PointCloud2 ros_out;
+    pcl::toROSMsg(cloud, ros_out);
+    ros_out.header = header_;
+    pub_result_cloud_.publish(ros_out);
+  }
 }
 
 #include <pluginlib/class_list_macros.h>
