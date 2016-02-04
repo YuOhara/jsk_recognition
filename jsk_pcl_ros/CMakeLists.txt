@@ -280,6 +280,10 @@ jsk_pcl_nodelet(src/joint_state_static_filter_nodelet.cpp
   "jsk_pcl/JointStateStaticFilter" "joint_state_static_filter")
 jsk_pcl_nodelet(src/icp_registration_nodelet.cpp
   "jsk_pcl/ICPRegistration" "icp_registration")
+jsk_pcl_nodelet(src/scene_flow_calculator_nodelet.cpp
+  "jsk_pcl/SceneFlowCalculator" "scene_flow_calculator")
+include_directories(/usr/local/cuda/include)
+
 jsk_pcl_util_nodelet_deprecated(src/transform_pointcloud_in_bounding_box_nodelet.cpp
   "jsk_pcl/TransformPointcloudInBoundingBox" "transform_pointcloud_in_bounding_box")
 jsk_pcl_nodelet(src/pointcloud_database_server_nodelet.cpp
