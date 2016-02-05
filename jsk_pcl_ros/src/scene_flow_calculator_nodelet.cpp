@@ -44,6 +44,7 @@
 #include <pcl/registration/correspondence_estimation_normal_shooting.h>
 #include <jsk_recognition_utils/pcl_ros_util.h>
 #include <math.h>
+#include <algorithm>
 namespace jsk_pcl_ros
 {
   void SceneFlowCalculator::onInit()
@@ -85,8 +86,8 @@ namespace jsk_pcl_ros
   {
     boost::mutex::scoped_lock lock(mutex_);
     model_.fromCameraInfo(msg);
-    rows_ = msg->height;
-    cols_ = msg->width;
+    rows_ = msg->height / 2;
+    cols_ = msg->width / 2;
     fovh_ = 2 * atan(model_.cx()/model_.fx());
     fovv_ = 2 * atan(model_.cy()/model_.fy());
     ctf_levels_ = round(log2(rows_/15)) + 1;
@@ -103,8 +104,8 @@ namespace jsk_pcl_ros
       for (unsigned int j=0; j<5; j++)
         g_mask_[i+5*j] = v_mask[i]*v_mask[j]/256.f;
 
-    colour_wf_ = MatrixXf::Zero(rows_, cols_);
-    depth_wf_ = MatrixXf::Zero(rows_, cols_);
+    colour_wf_ = MatrixXf::Zero(msg->height, msg->width);
+    depth_wf_ = MatrixXf::Zero(msg->height, msg->width);
     //Resize vectors according to levels
     dx_.resize(ctf_levels_); dy_.resize(ctf_levels_); dz_.resize(ctf_levels_);
 
@@ -185,9 +186,7 @@ namespace jsk_pcl_ros
       solveSceneFlowGPU();
       publishScene();
     }
-    // update scene
     calc_phase_ = true;
-
   }
   void SceneFlowCalculator::capture(
                const sensor_msgs::Image::ConstPtr& image_msg,
@@ -196,20 +195,27 @@ namespace jsk_pcl_ros
     cv_bridge::CvImagePtr cv_depth_ptr;
     try{
       cv_image_ptr = cv_bridge::toCvCopy(image_msg, "bgr8");
-      cv_depth_ptr = cv_bridge::toCvCopy(depth_msg, "32FC1");
+      //cv_depth_ptr = cv_bridge::toCvCopy(depth_msg, "32FC1");
     }
     catch (cv_bridge::Exception& e){
       JSK_NODELET_ERROR("error in converting msg->cv_mat: %s", e.what());
     }
     header_ = depth_msg->header;
     //cv_depth_ptr->image.convertTo(depth_float, CV_32FC1);
-    depth_float_ = cv_depth_ptr->image.clone();
+    //depth_float_ = cv_depth_ptr->image.clone();
+    const float* depth_row = reinterpret_cast<const float*>(&depth_msg->data[0]);
+    int row_step = depth_msg->step / sizeof(float);
     image_float_ = cv_image_ptr->image.clone();
     cvtColor(image_float_, colour_float_ ,CV_RGB2GRAY);
-    for (unsigned int v=0; v<colour_wf_.cols(); v++)
-      for (unsigned int u=0; u<colour_wf_.rows(); u++){
-        depth_wf_(u, v) = depth_float_.at<float>(u, v) * 1;
-        colour_wf_(u, v) = (float) colour_float_.at<unsigned char>(u, v);
+    for (unsigned int v=0; v<image_float_.rows; v++, depth_row+=row_step)
+      for (unsigned int u=0; u<image_float_.cols; u++){
+        //depth_wf_(u, v) = depth_float_.at<float>(u, v) ;
+        depth_wf_(v, u) = depth_row[u];
+        colour_wf_(v, u) = (float) colour_float_.at<unsigned char>(v, u);
+        // if (! calc_phase_)
+        //   {
+        //     JSK_NODELET_INFO("depth %f color %f", depth_wf_(v, u), colour_wf_(v, u));
+        //   }
       }
   }
   void SceneFlowCalculator::createImagePyramidGPU(){
@@ -296,32 +302,36 @@ namespace jsk_pcl_ros
 
     float bad_point = std::numeric_limits<float>::quiet_NaN ();
     pcl::PointCloud<pcl::PointXYZRGBNormal> cloud;
-    unsigned int width = depth_float_.cols;
-    unsigned int height = depth_float_.rows;
+
+    const unsigned int repr_level = round(log2(colour_wf_.cols()/cols_));
+    unsigned int width = depth_old_[repr_level].cols();
+    unsigned int height = depth_old_[repr_level].rows();
     cloud.points.resize(width * height);
     cloud.width = width;
     cloud.height = height;
     for (size_t i=0; i < height; i++) {
       for (size_t j=0; j < width; j++) {
-        float depth = depth_float_.at<float>(i, j);
+        float depth = depth_old_[repr_level](i, j);
+        //float depth = depth_wf_(i, j);
         if (! std::isfinite(depth)){
           cloud.points[i * width + j].x = bad_point;
           cloud.points[i * width + j].y = bad_point;
           cloud.points[i * width + j].z = bad_point;
         }
         else{
-          cloud.points[i * width + j].x = (j - center_x) * depth * constant_x;
-          cloud.points[i * width + j].y = (i - center_y) * depth * constant_y;
+          cloud.points[i * width + j].x = xx_old_[repr_level](i, j);//(j - center_x) * depth * constant_x;
+          cloud.points[i * width + j].y = yy_old_[repr_level](i, j);//(j - center_x) * depth * constant_x;
           cloud.points[i * width + j].z = depth;
         }
-        cloud.points[i * width + j].b = image_float_.at<cv::Vec3b>(i, j)[0];
-        cloud.points[i * width + j].g = image_float_.at<cv::Vec3b>(i, j)[1];
-        cloud.points[i * width + j].r = image_float_.at<cv::Vec3b>(i, j)[2];
+        cloud.points[i * width + j].r = std::min(1000 * sqrt(dx_[0](i, j)*dx_[0](i, j)), 254.0);
+        cloud.points[i * width + j].g = std::min(1000 * sqrt(dy_[0](i, j)*dy_[0](i, j)), 254.0);
+        cloud.points[i * width + j].b = std::min(1000 * sqrt(dz_[0](i, j)*dz_[0](i, j)), 254.0);
         cloud.points[i * width + j].normal_x = dx_[0](i, j);
-        cloud.points[i * width + j].normal_x = dy_[0](i, j);
-        cloud.points[i * width + j].normal_x = dz_[0](i, j);
+        cloud.points[i * width + j].normal_y = dy_[0](i, j);
+        cloud.points[i * width + j].normal_z = dz_[0](i, j);
       }
     }
+    // JSK_NODELET_INFO("normals for middle %f %f %f", cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x);
     sensor_msgs::PointCloud2 ros_out;
     pcl::toROSMsg(cloud, ros_out);
     ros_out.header = header_;
