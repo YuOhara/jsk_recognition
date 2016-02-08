@@ -225,7 +225,7 @@ namespace jsk_pcl_ros
     csf_host_.copyNewFrames(colour_wf_.data(), depth_wf_.data());
     //Copy scene flow object to device
     csf_device_ = ObjectToDevice(&csf_host_);
-    unsigned int pyr_levels = round(log2(640/(1*cols_))) + ctf_levels_;
+    unsigned int pyr_levels = round(log2(width_/(1*cols_))) + ctf_levels_;
     GaussianPyramidBridge(csf_device_, pyr_levels, 1, width_, height_);
     //Copy scene flow object back to host
     BridgeBack(&csf_host_, csf_device_);
