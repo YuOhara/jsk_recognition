@@ -86,6 +86,8 @@ namespace jsk_pcl_ros
   {
     boost::mutex::scoped_lock lock(mutex_);
     model_.fromCameraInfo(msg);
+    width_ = msg->width;
+    height_ = msg->height;
     rows_ = msg->height / 2;
     cols_ = msg->width / 2;
     fovh_ = 2 * atan(model_.cx()/model_.fx());
@@ -161,8 +163,8 @@ namespace jsk_pcl_ros
     done_sub_caminfo_ = true;
   }
   void SceneFlowCalculator::initializeCUDA(){
-    //Read parameters
-    csf_host_.readParameters(rows_, cols_, lambda_i_, lambda_d_, mu_, g_mask_, ctf_levels_, (unsigned int) 1, fovh_, fovv_);
+    //Read parameters3
+    csf_host_.readParameters(rows_, cols_, lambda_i_, lambda_d_, mu_, g_mask_, ctf_levels_, (unsigned int) 1, fovh_, fovv_, width_, height_);
     //Allocate memory
     csf_host_.allocateDevMemory();
 
@@ -224,7 +226,7 @@ namespace jsk_pcl_ros
     //Copy scene flow object to device
     csf_device_ = ObjectToDevice(&csf_host_);
     unsigned int pyr_levels = round(log2(640/(1*cols_))) + ctf_levels_;
-    GaussianPyramidBridge(csf_device_, pyr_levels, 1);
+    GaussianPyramidBridge(csf_device_, pyr_levels, 1, width_, height_);
     //Copy scene flow object back to host
     BridgeBack(&csf_host_, csf_device_);
   }

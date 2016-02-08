@@ -109,7 +109,7 @@ namespace jsk_pcl_ros
     std::vector<MatrixXf> dy_;
     std::vector<MatrixXf> dz_;
 
-    unsigned int rows_, cols_;
+    unsigned int rows_, cols_, width_, height_;
     float fovh_, fovv_;
 
     cv::Mat image_float_, colour_float_, depth_float_;
