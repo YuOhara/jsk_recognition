@@ -76,6 +76,8 @@ namespace jsk_pcl_ros
     virtual void unsubscribe();
     ros::Subscriber sub_camera_info_;
     ros::Publisher pub_result_cloud_;
+    ros::Publisher pub_result_cloud_fast_;
+    ros::Publisher pub_result_cloud_sac_;
     message_filters::Subscriber<sensor_msgs::Image> sub_input_;
     message_filters::Subscriber<sensor_msgs::Image> sub_box_;
     jsk_recognition_utils::WallDurationTimer timer_;
