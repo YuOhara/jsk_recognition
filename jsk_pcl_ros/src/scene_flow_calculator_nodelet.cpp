@@ -328,9 +328,9 @@ namespace jsk_pcl_ros
         cloud.points[i * width + j].r = std::min(1000 * sqrt(dx_[0](i, j)*dx_[0](i, j)), 254.0);
         cloud.points[i * width + j].g = std::min(1000 * sqrt(dy_[0](i, j)*dy_[0](i, j)), 254.0);
         cloud.points[i * width + j].b = std::min(1000 * sqrt(dz_[0](i, j)*dz_[0](i, j)), 254.0);
-        cloud.points[i * width + j].normal_x = dx_[0](i, j);
-        cloud.points[i * width + j].normal_y = dy_[0](i, j);
-        cloud.points[i * width + j].normal_z = dz_[0](i, j);
+        cloud.points[i * width + j].normal_x = dy_[0](i, j);
+        cloud.points[i * width + j].normal_y = dz_[0](i, j);
+        cloud.points[i * width + j].normal_z = dx_[0](i, j);
       }
     }
     // JSK_NODELET_INFO("normals for middle %f %f %f", cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x);
