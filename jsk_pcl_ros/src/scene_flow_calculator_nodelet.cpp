@@ -58,6 +58,7 @@ namespace jsk_pcl_ros
 
     pub_result_cloud_ = advertise<sensor_msgs::PointCloud2>(*pnh_,
       "output", 1);
+    pnh_->param("base_frame_id", base_frame_id_, std::string(""));
     onInitPostProcess();
   }
   
@@ -174,6 +175,8 @@ namespace jsk_pcl_ros
       const sensor_msgs::Image::ConstPtr& depth_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
+    Eigen::Affine3f trans_from_base_now;
+
     if (!done_init_) {
       JSK_NODELET_WARN("not yet initialized");
       return;

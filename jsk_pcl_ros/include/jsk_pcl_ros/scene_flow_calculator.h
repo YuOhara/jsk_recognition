@@ -82,6 +82,9 @@ namespace jsk_pcl_ros
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     image_geometry::PinholeCameraModel model_;
     std_msgs::Header header_;
+    std::string base_frame_id_;
+    Eigen::Affine3f trans_from_base_old_;
+    Eigen::Affine3f trans_from_base_now_;
     bool done_init_;
     bool done_sub_caminfo_;
     bool calc_phase_;
@@ -92,7 +95,7 @@ namespace jsk_pcl_ros
     unsigned int num_max_iter_[6]; //Max number of iterations distributed homogeneously between all levels
     MatrixXf colour_wf_;
     MatrixXf depth_wf_;
-
+    
     //Matrices that store the images downsampled
     std::vector<MatrixXf> colour_;
     std::vector<MatrixXf> colour_old_;
