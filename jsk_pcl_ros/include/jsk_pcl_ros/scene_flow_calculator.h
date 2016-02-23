@@ -51,6 +51,7 @@
 #include <jsk_recognition_utils/time_util.h>
 #include <jsk_pcl_ros/PD-Flow/pdflow_cudalib.h>
 #include <image_geometry/pinhole_camera_model.h>
+#include "jsk_pcl_ros/tf_listener_singleton.h"
 #include <cv_bridge/cv_bridge.h>
 
 using Eigen::MatrixXf;
@@ -70,6 +71,7 @@ namespace jsk_pcl_ros
       const sensor_msgs::Image::ConstPtr& depth_msg);
     virtual void cameraInfoCallback(
       const sensor_msgs::CameraInfo::ConstPtr& msg);
+    tf::TransformListener* tf_listener_;
   protected:
     virtual void onInit();
     virtual void subscribe();
