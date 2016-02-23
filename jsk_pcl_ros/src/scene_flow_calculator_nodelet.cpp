@@ -206,6 +206,23 @@ namespace jsk_pcl_ros
     catch (cv_bridge::Exception& e){
       JSK_NODELET_ERROR("error in converting msg->cv_mat: %s", e.what());
     }
+    trans_from_base_old_ = trans_from_base_now_;
+    tf::StampedTransform transform;
+    if (base_frame_id_ != std::string(""))
+    {
+      try{
+        tf_listener_->lookupTransform(base_frame_id_, depth_msg->header.frame_id,
+                                      depth_msg->header.stamp, transform);
+      }
+      catch (tf::TransformException &ex) {
+        JSK_NODELET_WARN("%s",ex.what());
+        return;
+      }
+      trans_from_base_now_ = Eigen::Translation3d(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()) * Eigen::Quaterniond(transform.getRotation().w(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z());
+    } else {
+      trans_from_base_now_ = Eigen::Affine3d::Identity();
+    }
+
     header_ = depth_msg->header;
     //cv_depth_ptr->image.convertTo(depth_float, CV_32FC1);
     //depth_float_ = cv_depth_ptr->image.clone();

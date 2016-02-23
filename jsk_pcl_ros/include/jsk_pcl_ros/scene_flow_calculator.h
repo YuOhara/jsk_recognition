@@ -85,8 +85,8 @@ namespace jsk_pcl_ros
     image_geometry::PinholeCameraModel model_;
     std_msgs::Header header_;
     std::string base_frame_id_;
-    Eigen::Affine3f trans_from_base_old_;
-    Eigen::Affine3f trans_from_base_now_;
+    Eigen::Affine3d trans_from_base_old_;
+    Eigen::Affine3d trans_from_base_now_;
     bool done_init_;
     bool done_sub_caminfo_;
     bool calc_phase_;
