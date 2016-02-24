@@ -208,6 +208,7 @@ namespace jsk_pcl_ros
     }
     trans_from_base_old_ = trans_from_base_now_;
     tf::StampedTransform transform;
+    JSK_NODELET_INFO("BASE_FRAME_ID, %s", base_frame_id_.c_str());
     if (base_frame_id_ != std::string(""))
     {
       try{
@@ -336,22 +337,29 @@ namespace jsk_pcl_ros
       for (size_t j=0; j < width; j++) {
         float depth = depth_old_[repr_level](i, j);
         //float depth = depth_wf_(i, j);
+        Eigen::Vector3d point;
+        Eigen::Vector3d flow;
         if (! std::isfinite(depth)){
-          cloud.points[i * width + j].x = bad_point;
-          cloud.points[i * width + j].y = bad_point;
-          cloud.points[i * width + j].z = bad_point;
+          point = Eigen::Vector3d(bad_point, bad_point, bad_point);
         }
         else{
-          cloud.points[i * width + j].x = xx_old_[repr_level](i, j);//(j - center_x) * depth * constant_x;
-          cloud.points[i * width + j].y = yy_old_[repr_level](i, j);//(j - center_x) * depth * constant_x;
-          cloud.points[i * width + j].z = depth;
+          point = Eigen::Vector3d(xx_old_[repr_level](i, j), yy_old_[repr_level](i, j), depth);
         }
-        cloud.points[i * width + j].r = std::min(1000 * sqrt(dx_[0](i, j)*dx_[0](i, j)), 254.0);
-        cloud.points[i * width + j].g = std::min(1000 * sqrt(dy_[0](i, j)*dy_[0](i, j)), 254.0);
-        cloud.points[i * width + j].b = std::min(1000 * sqrt(dz_[0](i, j)*dz_[0](i, j)), 254.0);
-        cloud.points[i * width + j].normal_x = dy_[0](i, j);
-        cloud.points[i * width + j].normal_y = dz_[0](i, j);
-        cloud.points[i * width + j].normal_z = dx_[0](i, j);
+        flow = Eigen::Vector3d(dy_[0](i, j), dz_[0](i, j), dx_[0](i, j));
+        Eigen::Vector3d point_old_frame = point;
+        point = trans_from_base_now_.inverse() * trans_from_base_old_ * point;
+
+        //flow = flow - (( trans_from_base_old_.inverse() * trans_from_base_now_) * point_old_frame - point_old_frame); //todo
+        
+        cloud.points[i * width + j].x = point.x();
+        cloud.points[i * width + j].y = point.y();
+        cloud.points[i * width + j].z = point.z();
+        cloud.points[i * width + j].r = std::min(1000 * sqrt(flow.x()*flow.x()), 254.0);
+        cloud.points[i * width + j].g = std::min(1000 * sqrt(flow.y()*flow.y()), 254.0);
+        cloud.points[i * width + j].b = std::min(1000 * sqrt(flow.z()*flow.z()), 254.0);
+        cloud.points[i * width + j].normal_x = flow.x();
+        cloud.points[i * width + j].normal_y = flow.y();
+        cloud.points[i * width + j].normal_z = flow.z();
       }
     }
     // JSK_NODELET_INFO("normals for middle %f %f %f", cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x);
