@@ -346,10 +346,10 @@ namespace jsk_pcl_ros
           point = Eigen::Vector3d(xx_old_[repr_level](i, j), yy_old_[repr_level](i, j), depth);
         }
         flow = Eigen::Vector3d(dy_[0](i, j), dz_[0](i, j), dx_[0](i, j));
-        Eigen::Vector3d point_old_frame = point;
-        point = trans_from_base_now_.inverse() * trans_from_base_old_ * point;
-
-        //flow = flow - (( trans_from_base_old_.inverse() * trans_from_base_now_) * point_old_frame - point_old_frame); //todo
+        Eigen::Vector3d point_old_frame = Eigen::Vector3d(point.x(), point.y(), point.z());
+        point = trans_from_base_old_ * point;
+        Eigen::Vector3d new_point_old_frame = trans_from_base_old_ * (point_old_frame + flow);
+        flow =  trans_from_base_now_ * (point_old_frame + flow) - point; //flow+ ((trans_from_base_now_.inverse() * trans_from_base_old_).inverse() * point_old_frame - point_old_frame); //todo
         
         cloud.points[i * width + j].x = point.x();
         cloud.points[i * width + j].y = point.y();
@@ -366,6 +366,7 @@ namespace jsk_pcl_ros
     sensor_msgs::PointCloud2 ros_out;
     pcl::toROSMsg(cloud, ros_out);
     ros_out.header = header_;
+    if (base_frame_id_!= std::string("")) {ros_out.header.frame_id=base_frame_id_;}
     pub_result_cloud_.publish(ros_out);
   }
 }
