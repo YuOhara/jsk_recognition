@@ -348,18 +348,18 @@ namespace jsk_pcl_ros
         flow = Eigen::Vector3d(dy_[0](i, j), dz_[0](i, j), dx_[0](i, j));
         Eigen::Vector3d point_old_frame = Eigen::Vector3d(point.x(), point.y(), point.z());
         point = trans_from_base_old_ * point;
-        Eigen::Vector3d new_point_old_frame = trans_from_base_old_ * (point_old_frame + flow);
-        flow =  trans_from_base_now_ * (point_old_frame + flow) - point; //flow+ ((trans_from_base_now_.inverse() * trans_from_base_old_).inverse() * point_old_frame - point_old_frame); //todo
-        
+        Eigen::Vector3d new_point_base_frame = trans_from_base_now_ * (point_old_frame + flow);
+        Eigen::Vector3d flow_base_frame =  new_point_base_frame - point; //flow+ ((trans_from_base_now_.inverse() * trans_from_base_old_).inverse() * point_old_frame - point_old_frame); //todo
+        //point = new_point_base_frame;
         cloud.points[i * width + j].x = point.x();
         cloud.points[i * width + j].y = point.y();
         cloud.points[i * width + j].z = point.z();
-        cloud.points[i * width + j].r = std::min(1000 * sqrt(flow.x()*flow.x()), 254.0);
-        cloud.points[i * width + j].g = std::min(1000 * sqrt(flow.y()*flow.y()), 254.0);
-        cloud.points[i * width + j].b = std::min(1000 * sqrt(flow.z()*flow.z()), 254.0);
-        cloud.points[i * width + j].normal_x = flow.x();
-        cloud.points[i * width + j].normal_y = flow.y();
-        cloud.points[i * width + j].normal_z = flow.z();
+        cloud.points[i * width + j].r = std::min(1000 * sqrt(flow_base_frame.x()*flow_base_frame.x()), 254.0);
+        cloud.points[i * width + j].g = std::min(1000 * sqrt(flow_base_frame.y()*flow_base_frame.y()), 254.0);
+        cloud.points[i * width + j].b = std::min(1000 * sqrt(flow_base_frame.z()*flow_base_frame.z()), 254.0);
+        cloud.points[i * width + j].normal_x = flow_base_frame.x();
+        cloud.points[i * width + j].normal_y = flow_base_frame.y();
+        cloud.points[i * width + j].normal_z = flow_base_frame.z();
       }
     }
     // JSK_NODELET_INFO("normals for middle %f %f %f", cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x, cloud.points[200 * width + 200].normal_x);
