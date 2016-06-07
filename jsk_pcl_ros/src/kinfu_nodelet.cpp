@@ -167,13 +167,15 @@ namespace jsk_pcl_ros
         Eigen::Affine3f odom_camera;
         tf::transformTFToEigen(trans, odom_camera);
         Eigen::Affine3f map = initial_camera_pose_ * K * odom_camera.inverse();
+        Eigen::Affine3f map_inverse = map.inverse();
         tf::Transform map_odom_transform;
-        tf::transformEigenToTF(map, map_odom_transform);
+        tf::transformEigenToTF(map_inverse, map_odom_transform);
         tf_broadcaster_.sendTransform(tf::StampedTransform(
                                                            map_odom_transform,
                                                            depth_image->header.stamp,
-                                                           parent_frame_id_,
-                                                           child_frame_id_));
+                                                           child_frame_id_,
+                                                           parent_frame_id_
+                                                           ));
         tf::Transform kinfu_origin;
         Eigen::Affine3f inverse_camera_pose = camera_pose.inverse();
         tf::transformEigenToTF(inverse_camera_pose, kinfu_origin);
