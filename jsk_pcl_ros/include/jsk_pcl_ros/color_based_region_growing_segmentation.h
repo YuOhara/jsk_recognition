@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, JSK Lab
+ *  Copyright (c) 2016, Satoshi Otsubo and JSK Lab
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -33,51 +33,44 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include "jsk_pcl_ros_utils/delay_pointcloud.h"
-#include <pluginlib/class_list_macros.h>
+#ifndef JSK_PCL_ROS_COLOR_BASED_REGION_GROWING_SEGMENTATION_H_
+#define JSK_PCL_ROS_COLOR_BASED_REGION_GROWING_SEGMENTATION_H_
 
-namespace jsk_pcl_ros_utils
+#include <pcl_ros/pcl_nodelet.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/search/search.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/region_growing_rgb.h>
+
+#include <dynamic_reconfigure/server.h>
+#include "jsk_pcl_ros/ColorBasedRegionGrowingSegmentationConfig.h"
+#include <jsk_topic_tools/connection_based_nodelet.h>
+namespace jsk_pcl_ros
 {
-  void DelayPointCloud::onInit()
+  class ColorBasedRegionGrowingSegmentation:
+    public jsk_topic_tools::ConnectionBasedNodelet
   {
-    ConnectionBasedNodelet::onInit();
-
-    srv_ = boost::make_shared <dynamic_reconfigure::Server<Config> > (*pnh_);
-    dynamic_reconfigure::Server<Config>::CallbackType f =
-        boost::bind (&DelayPointCloud::configCallback, this, _1, _2);
-    srv_->setCallback (f);
-
-    pnh_->param("delay_time", delay_time_, 0.1);
-    pnh_->param("queue_size", queue_size_, 1000);
-    pub_ = advertise<sensor_msgs::PointCloud2>(*pnh_, "output", queue_size_);
-  }
-
-  void DelayPointCloud::configCallback(Config &config, uint32_t level)
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-
-    delay_time_ = config.delay_time;
-    DelayPointCloud::subscribe();
-  }
-
-  void DelayPointCloud::delay(const sensor_msgs::PointCloud2::ConstPtr& msg)
-  {
-    sensor_msgs::PointCloud2 out_cloud_msg = *msg;
-    out_cloud_msg.header.stamp = ros::Time::now();
-    pub_.publish(out_cloud_msg);
-  }
-
-  void DelayPointCloud::subscribe()
-  {
-    sub_.subscribe(*pnh_, "input", 1);
-    time_sequencer_ = boost::make_shared<message_filters::TimeSequencer<sensor_msgs::PointCloud2> >(ros::Duration(delay_time_), ros::Duration(0.01), queue_size_);
-    time_sequencer_->connectInput(sub_);
-    time_sequencer_->registerCallback(boost::bind(&DelayPointCloud::delay, this, _1));
-  }
-  void DelayPointCloud::unsubscribe()
-  {
-    sub_.unsubscribe();
-  }
+  public:
+  protected:
+    ros::Publisher pub_;
+    ros::Subscriber sub_;
+    int distance_threshould_;
+    int point_color_threshould_;
+    int region_color_threshould_;
+    int min_cluster_size_;
+    typedef jsk_pcl_ros::ColorBasedRegionGrowingSegmentationConfig Config;
+    boost::shared_ptr <dynamic_reconfigure::Server<Config> > srv_;
+    boost::mutex mutex_;
+    virtual void segment(const sensor_msgs::PointCloud2::ConstPtr& msg);
+    virtual void configCallback (Config &config, uint32_t level);
+    virtual void subscribe();
+    virtual void unsubscribe();
+  private:
+    virtual void onInit();
+  };
 }
 
-PLUGINLIB_EXPORT_CLASS (jsk_pcl_ros_utils::DelayPointCloud, nodelet::Nodelet);
+#endif

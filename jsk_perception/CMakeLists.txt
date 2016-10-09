@@ -74,13 +74,6 @@ add_custom_target(install_sample_data ALL COMMAND ${PROJECT_SOURCE_DIR}/scripts/
 # download and install trained data
 add_custom_target(install_trained_data ALL COMMAND ${PROJECT_SOURCE_DIR}/scripts/install_trained_data.py)
 
-execute_process(
-  COMMAND cmake -E chdir ${CMAKE_CURRENT_BINARY_DIR}
-  make -f ${PROJECT_SOURCE_DIR}/Makefile.slic
-  INSTALL_DIR=${CATKIN_DEVEL_PREFIX}
-  MK_DIR=${mk_PREFIX}/share/mk installed
-  RESULT_VARIABLE _make_failed)
-
 # ------------------------------------------------------------------------------------
 # Catkin setup
 # ------------------------------------------------------------------------------------
@@ -101,13 +94,10 @@ generate_dynamic_reconfigure_options(
   cfg/SLICSuperPixels.cfg
   cfg/SnakeSegmentation.cfg
   cfg/camshiftdemo.cfg
-  cfg/EdgeDetector.cfg
-  cfg/HoughLines.cfg
   cfg/matchtemplate.cfg
   cfg/point_pose_extractor.cfg
   cfg/RectangleDetector.cfg
   cfg/ColorHistogram.cfg
-  cfg/HoughCircles.cfg
   cfg/ColorHistogramSlidingMatcher.cfg
   cfg/BackgroundSubstraction.cfg
   cfg/GrabCut.cfg
@@ -149,13 +139,18 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME} oriented_gradient
 )
 
+
 # ------------------------------------------------------------------------------------
 # Build
 # ------------------------------------------------------------------------------------
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/slic/slic.cpp)
+  message(WARNING "slic/slic.cpp is not exists, download this")
+  execute_process(COMMAND git submodule init slic   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  execute_process(COMMAND git submodule update slic WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
 
 # Build nodelet executables
-
-include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/build/patched-SLIC-Superpixels)
+include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} slic)
 
 file(GLOB ${PROJECT_NAME}_node_scripts ${PROJECT_SOURCE_DIR}/node_scripts/*)
 foreach(_node_script ${${PROJECT_NAME}_node_scripts})
@@ -178,12 +173,10 @@ jsk_add_nodelet(src/rect_array_actual_size_filter.cpp "jsk_perception/RectArrayA
 jsk_add_nodelet(src/rect_array_to_density_image.cpp "jsk_perception/RectArrayToDensityImage" "rect_array_to_density_image")
 jsk_add_nodelet(src/polygon_array_color_likelihood.cpp "jsk_perception/PolygonArrayColorLikelihood" "polygon_array_color_likelihood")
 jsk_add_nodelet(src/polygon_array_color_histogram.cpp "jsk_perception/PolygonArrayColorHistogram" "polygon_array_color_histogram")
-jsk_add_nodelet(src/edge_detector.cpp "jsk_perception/EdgeDetector" "edge_detector")
 jsk_add_nodelet(src/sparse_image_encoder.cpp "jsk_perception/SparseImageEncoder" "sparse_image_encoder")
 jsk_add_nodelet(src/sparse_image_decoder.cpp "jsk_perception/SparseImageDecoder" "sparse_image_decoder")
 jsk_add_nodelet(src/color_histogram.cpp "jsk_perception/ColorHistogram" "color_histogram")
 jsk_add_nodelet(src/background_substraction_nodelet.cpp "jsk_perception/BackgroundSubstraction" "background_substraction")
-jsk_add_nodelet(src/hough_circles.cpp "jsk_perception/HoughCircleDetector" "hough_circles")
 jsk_add_nodelet(src/fisheye_to_panorama.cpp "jsk_perception/FisheyeToPanorama" "fisheye_to_panorama")
 jsk_add_nodelet(src/grabcut_nodelet.cpp "jsk_perception/GrabCut" "grabcut")
 jsk_add_nodelet(src/slic_superpixels.cpp "jsk_perception/SLICSuperPixels" "slic_super_pixels")
@@ -251,8 +244,8 @@ if(robot_self_filter_FOUND)
 endif()
 
 # compiling jsk_perception library for nodelet
-add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_nodelet_sources}
-  ${CMAKE_CURRENT_BINARY_DIR}/build/patched-SLIC-Superpixels/slic.cpp
+add_library(${PROJECT_NAME} SHARED ${jsk_perception_nodelet_sources}
+  slic/slic.cpp
   src/histogram_of_oriented_gradients.cpp
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${robot_self_filter_LIBRARIES} yaml-cpp)
@@ -284,7 +277,6 @@ jsk_add_node(src/linemod.cpp linemod)
 jsk_add_node(src/virtual_camera_mono.cpp virtual_camera_mono)
 jsk_add_node(src/point_pose_extractor.cpp point_pose_extractor DEPENDS libsiftfast)
 jsk_add_node(src/white_balance_converter.cpp white_balance_converter)
-jsk_add_node(src/hough_lines.cpp hough_lines)
 jsk_add_node(src/rectangle_detector.cpp rectangle_detector)
 jsk_add_node(src/calc_flow.cpp calc_flow)
 jsk_add_node(src/color_histogram_sliding_matcher.cpp color_histogram_sliding_matcher)
