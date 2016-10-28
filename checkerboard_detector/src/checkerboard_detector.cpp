@@ -512,6 +512,14 @@ public:
                     }
                 }
 
+                clock_t start = clock();    // スタート時間
+                // refines the corner locations to sub_pixel
+                if (allfound || cb.board_type == "chess")
+                    cv::cornerSubPix(capture, cb.corners, cv::Size(5, 5), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_ITER,20,1e-2));
+                clock_t end = clock();     // 終了時間
+                std::cout << "duration for cornerSubPix= " << (double)(end - start) / CLOCKS_PER_SEC << "sec.\n";
+
+
                 // mark out the image
                 cv::Point upperleft, lowerright;
                 upperleft.x = lowerright.x = cb.corners[0].x;
