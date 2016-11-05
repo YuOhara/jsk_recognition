@@ -49,6 +49,9 @@ IF(${yaml_cpp_VERSION} VERSION_LESS "0.5.0")
   add_definitions("-DUSE_OLD_YAML")
 ENDIF()
 
+message(WARNING "DEPRECATION WARNING: srv files in jsk_pcl_ros are deprecated."
+        " Please use those in jsk_recognition_msgs.")
+# TODO(wkentaro): Remove deprecated srv files.
 add_service_files(FILES SwitchTopic.srv
   UpdateOffset.srv
   SnapFootstep.srv
@@ -123,6 +126,7 @@ generate_dynamic_reconfigure_options(
   cfg/Kinfu.cfg
   cfg/PointcloudDatabaseServer.cfg
   cfg/TargetAdaptiveTracking.cfg
+  cfg/PPFRegistration.cfg
   )
 
 find_package(OpenCV REQUIRED core imgproc)
@@ -350,6 +354,8 @@ jsk_pcl_nodelet(src/heightmap_time_accumulation_nodelet.cpp
   "jsk_pcl/HeightmapTimeAccumulation" "heightmap_time_accumulation")
 jsk_pcl_nodelet(src/voxel_grid_large_scale_nodelet.cpp
   "jsk_pcl/VoxelGridLargeScale" "voxel_grid_large_scale")
+jsk_pcl_nodelet(src/ppf_registration_nodelet.cpp
+  "jsk_pcl/PPFRegistration" "ppf_registration")
 if (PCL_GPU_KINFU_LARGE_SCALE_FOUND)
   jsk_pcl_nodelet(src/kinfu_nodelet.cpp
     "jsk_pcl/Kinfu" "kinfu")
@@ -454,11 +460,11 @@ install(DIRECTORY scripts/
         USE_SOURCE_PERMISSIONS
 )
 
-install(FILES jsk_pcl_nodelets.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(DIRECTORY
   config
   launch
   sample
+  plugins
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 if (CATKIN_ENABLE_TESTING)
@@ -484,6 +490,7 @@ if (CATKIN_ENABLE_TESTING)
     add_rostest(test/test_pointcloud_database_server.test DEPENDENCIES install_test_data)
     add_rostest(test/test_convex_connected_voxels.test DEPENDENCIES install_test_data)
     add_rostest(test/test_organized_pointcloud_to_point_indices.test DEPENDENCIES install_test_data)
+    add_rostest(test/test_rearrange_bounding_box.test)
     add_rostest(test/test_color_based_region_growing_segmentation.test DEPENDENCIES install_test_data)
   endif()
   roslaunch_add_file_check(launch/openni_local.launch)
